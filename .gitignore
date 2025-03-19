@@ -1,0 +1,5 @@
+.env
+/prompt
+/test*
+/.venv
+/__pycache__
