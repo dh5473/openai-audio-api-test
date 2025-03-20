@@ -2,7 +2,6 @@ import base64
 import io
 import wave
 import sounddevice as sd
-import numpy as np
 
 
 def encode_audio_to_base64(audio_bytes):
@@ -33,3 +32,46 @@ def record_audio(duration=5, fs=16000):
             wf.writeframes(audio_data.tobytes())
         wav_bytes = wav_io.getvalue()
     return wav_bytes
+
+
+def translate_chinese_to_korean(chinese_text, client):
+    translation_prompt = f"다음 중국어 텍스트를 한국어로 번역해줘:\n\n{chinese_text}"
+
+    completion = client.chat.completions.create(
+        model="gpt-4o", messages=[{"role": "user", "content": translation_prompt}]
+    )
+
+    translated_text = completion.choices[0].message.content
+    return translated_text
+
+
+def audio_to_chinese_transcript(audio_bytes, client):
+    # 학생의 발음을 정확하게 텍스트로 변환
+    transcript_prompt = """
+    学生: [沉默]  
+    老师: 你可以再试一次吗？  
+
+    学生: [发音不清]  
+    老师: 请慢慢来，我们一起读：「我喜欢吃苹果」。  
+
+    学生: 我喜欢吃苹果  
+    老师: 很好！你的发音很标准！  
+    """
+    
+    audio_io = io.BytesIO(audio_bytes)
+    audio_io.name = "student_audio.wav"
+
+    transcript = client.audio.transcriptions.create(
+        model="whisper-1", 
+        file=audio_io, 
+        prompt=transcript_prompt
+    )
+
+    return transcript.text
+
+
+def summarize_conversation(conversation_summary, role, transcript, counter, client):
+    conversation_summary += f"{counter}. {role}: {transcript}\n"
+
+    # 추후 요약 모델 붙이기
+    return conversation_summary

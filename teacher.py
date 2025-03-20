@@ -1,21 +1,10 @@
 # teacher.py
 import base64
 import time
-from helper import save_audio_file
+from helper import save_audio_file, translate_chinese_to_korean
 
 
-def translate_chinese_to_korean(chinese_text, client):
-    translation_prompt = f"다음 중국어 텍스트를 한국어로 번역해줘:\n\n{chinese_text}"
-
-    completion = client.chat.completions.create(
-        model="gpt-4o", messages=[{"role": "user", "content": translation_prompt}]
-    )
-
-    translated_text = completion.choices[0].message.content
-    return translated_text
-
-
-def send_message(conversation_history, client, counter):
+def send_message(conversation_history, counter, client):
     messages = conversation_history.copy()
 
     start_time = time.time()
@@ -33,9 +22,6 @@ def send_message(conversation_history, client, counter):
     message = completion.choices[0].message
     transcript = message.audio.transcript if message.audio else ""
     audio_id = message.audio.id if message.audio else None
-
-    finish = completion.choices[0].finish_reason
-    print("finish reason :", finish)
 
     print("===== AI 응답 =====")
     print(transcript)

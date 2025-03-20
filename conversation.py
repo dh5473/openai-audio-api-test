@@ -1,6 +1,12 @@
 # conversation.py
 import base64
-from helper import encode_audio_to_base64, record_audio, save_audio_file
+from helper import (
+    encode_audio_to_base64,
+    record_audio,
+    save_audio_file,
+    summarize_conversation,
+    audio_to_chinese_transcript,
+)
 from teacher import send_message
 
 
@@ -16,19 +22,34 @@ def conversation_loop(client):
     5. 重要：无论学生用什么语言回复，你都只能使用中文回应。即使学生用韩语或其他语言提问，你也只能用中文回答，必要时可以使用更简单的中文词汇或短句来帮助学生理解，但绝对不要使用韩语。
     6. 当学生表现优秀时，你应该表现出真实的喜悦和热情，用更加生动、活泼的语调表达赞扬，就像真正的老师会做的那样。使用丰富的肢体语言描述（如拍手、竖起大拇指等）来增强你的表达效果。
     7. 持续进行教学，不要主动结束对话，始终保持教学的连续性和互动性。
-
-    [START]
-    请先用"donhyeok同学"问候学生，并示范朗读第一句话：「我喜欢吃苹果」，邀请学生跟读。
     """
+
+    conversation_summary = """
+    \n[CONVERSATION SUMMARY]\n"""
 
     # lesson 세팅
     conversation_history = [
         {"role": "user", "content": [{"type": "text", "text": lesson_prompt}]}
     ]
     counter = 1
-    teacher_transcript, audio_id = send_message(conversation_history, client, counter)
+    teacher_transcript, audio_id = send_message(conversation_history, counter, client)
     # conversation_history.append({"role": "assistant", "content": teacher_transcript})
-    conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
+    # conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
+
+    conversation_summary = summarize_conversation(
+        conversation_summary=conversation_summary,
+        role="teacher",
+        transcript=teacher_transcript,
+        counter=counter,
+        client=client,
+    )
+
+    conversation_history = [
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": lesson_prompt + conversation_summary}],
+        }
+    ]
 
     while True:
         counter += 1
@@ -57,12 +78,41 @@ def conversation_loop(client):
             ],
         }
         conversation_history.append(student_message)
+        student_transcript = audio_to_chinese_transcript(student_audio_bytes, client)
+
+        conversation_summary = summarize_conversation(
+            conversation_summary=conversation_summary,
+            role="student",
+            transcript=student_transcript,
+            counter=counter,
+            client=client,
+        )
 
         counter += 1
         teacher_transcript, audio_id = send_message(
-            conversation_history, client, counter
+            conversation_history, counter, client
         )
-        conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
+        # conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
+        conversation_summary = summarize_conversation(
+            conversation_summary=conversation_summary,
+            role="teacher",
+            transcript=teacher_transcript,
+            counter=counter,
+            client=client,
+        )
+
+        conversation_history = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": lesson_prompt + conversation_summary}
+                ],
+            }
+        ]
+
+        print()
+        print("conversation_summary: ", conversation_summary)
+        print()
 
         user_continue = input("대화를 계속하려면 엔터, 종료하려면 'q'를 입력하세요: ")
         if user_continue.lower() == "q":
