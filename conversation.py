@@ -1,18 +1,10 @@
 # conversation.py
 import base64
 from helper import encode_audio_to_base64, record_audio, save_audio_file
-from teacher import send_teacher_message, send_teacher_response
+from teacher import send_message
 
 
 def conversation_loop(client):
-    """
-    무한 대화형 테스트 루프:
-    - AI 선생님이 먼저 수업을 시작합니다.
-    - 학생의 음성/텍스트 입력을 받아 AI 선생님이 후속 응답을 생성합니다.
-    """
-    conversation_history = []
-
-    # --- 수업 시작 ---
     lesson_prompt = """
     你是一名资深汉语教师，你只会说普通话，不会说韩语。你教学时要使用自然的中文语速和表达，只有在示范需要学生跟读的句子时才放慢速度。因为你的学生是韩国人，汉语水平是初级。
     你必须在称呼学生时使用他们的名字，并加上同学。你必须在上课之前问候学生。
@@ -29,23 +21,27 @@ def conversation_loop(client):
     请先用"donhyeok同学"问候学生，并示范朗读第一句话：「我喜欢吃苹果」，邀请学生跟读。
     """
 
-    _, last_audio_id = send_teacher_message(lesson_prompt, client)
-    conversation_history.append({"role": "assistant", "audio": {"id": last_audio_id}})
-
-    print("=== 수업 시작 ===")
-    counter = 2
+    # lesson 세팅
+    conversation_history = [
+        {"role": "user", "content": [{"type": "text", "text": lesson_prompt}]}
+    ]
+    counter = 1
+    teacher_transcript, audio_id = send_message(conversation_history, client, counter)
+    # conversation_history.append({"role": "assistant", "content": teacher_transcript})
+    conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
 
     while True:
-        # 학생 답변 녹음
+        counter += 1
+
         input("엔터키를 눌러 녹음을 시작하세요...")
         student_audio_bytes = record_audio(duration=5, fs=16000)
         student_filename = f"{counter}_student.wav"
         save_audio_file(student_audio_bytes, student_filename)
-
         student_encoded = encode_audio_to_base64(student_audio_bytes)
-        student_text = input("텍스트 답변을 입력하세요 (없으면 엔터): ")
-        if not student_text.strip():
-            student_text = "학생의 음성 답변만 첨부되었습니다."
+
+        # student_text = input("텍스트 답변을 입력하세요 (없으면 엔터): ")
+        # if not student_text.strip():
+        #     student_text = "학생의 음성 답변만 첨부되었습니다."
 
         student_message = {
             "role": "user",
@@ -61,18 +57,13 @@ def conversation_loop(client):
             ],
         }
         conversation_history.append(student_message)
-        counter += 1
 
-        teacher_transcript, last_audio_id = send_teacher_response(
+        counter += 1
+        teacher_transcript, audio_id = send_message(
             conversation_history, client, counter
         )
+        conversation_history.append({"role": "assistant", "audio": {"id": audio_id}})
 
-        conversation_history.append(
-            {"role": "assistant", "audio": {"id": last_audio_id}}
-        )
-        counter += 1
-
-        # 종료 조건 확인
         user_continue = input("대화를 계속하려면 엔터, 종료하려면 'q'를 입력하세요: ")
         if user_continue.lower() == "q":
             print("수업 대화를 종료합니다.")
