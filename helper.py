@@ -14,6 +14,15 @@ def save_audio_file(audio_bytes, filename):
     print(f"오디오 파일이 저장되었습니다: {filename}")
 
 
+def save_pcm_file(pcm_data, filename, channels=1, sample_width=2, frame_rate=22000):
+    with wave.open(filename, "wb") as wf:
+        wf.setnchannels(channels)  # 모노: 1, 스테레오: 2 등
+        wf.setsampwidth(sample_width)  # 일반적으로 2바이트 (16비트)
+        wf.setframerate(frame_rate)  # 예: 44100Hz
+        wf.writeframes(pcm_data)
+    print(f"오디오 파일이 저장되었습니다: {filename}")
+
+
 def record_audio(duration=5, fs=16000):
     """
     마이크로부터 지정된 시간 동안 음성을 녹음하고,
@@ -57,14 +66,12 @@ def audio_to_chinese_transcript(audio_bytes, client):
     学生: 我喜欢吃苹果  
     老师: 很好！你的发音很标准！  
     """
-    
+
     audio_io = io.BytesIO(audio_bytes)
     audio_io.name = "student_audio.wav"
 
     transcript = client.audio.transcriptions.create(
-        model="whisper-1", 
-        file=audio_io, 
-        prompt=transcript_prompt
+        model="gpt-4o-transcribe", file=audio_io, prompt=transcript_prompt
     )
 
     return transcript.text
